@@ -1,4 +1,4 @@
-function turingpdc
+function turingpdc2
 
 close all;
 
@@ -7,42 +7,45 @@ dy = 0.02;
 dt = 1e-4;
 T = 10000;
 D = 0.2;
+DRatio = 1.75;
+
+alpha = 0;
+beta = 0;
+gamma = 0;
+r1 = 0;
+r2 = 0;
 
 x = 0:dx:1;
 y = 0:dy:1;
 
 [x,y] = meshgrid(x,y);
 
-c = zeros(length(x));
-c(6:8,:) = 10;
-c(:,6:8) = 10;
+activatorConc = zeros(length(x));
+activatorConc(:) = 10;
+activatorConc(:) = 10;
+
+inhibitorConc = zeros(length(x));
+inhibitorConc(10:12,:) = 10;
+inhibitorConc(:,1:2) = 10;
 
 function p = pindex(i)
-if i == length(c)
-    p = i;
-elseif i == 0
-    p = length(c);
-elseif i == length(c)+1
-    p = 1;
-else 
-    p = i;
+    if i == length(activatorConc)
+        p = i;
+    elseif i == 0
+        p = length(activatorConc);
+    elseif i == length(activatorConc)+1
+        p = 1;
+    else 
+        p = i;
+    end
 end
-end
 
-h1 = surf(x,y,c,'edgecolor','none');
-colormap gray;
-caxis([0,5]);
-xlim([0,1]);
-ylim([0,1]);
-%view(2);
-hold all;
-
-c2 = zeros(length(c));
-
-k1 = D*dt/dx^2;
-k2 = D*dt/dy^2;
-
-for t=1:T
+function c2 = diffusionStep(c,D)
+    c2 = zeros(length(c));
+    
+    k1 = D*dt/dx^2;
+    k2 = D*dt/dy^2;
+    
     for i=1:length(c)
         for j = 1:length(c)
             if i == 1 
@@ -51,20 +54,78 @@ for t=1:T
                     c(i,pindex(j+1))) + c(i,j);
             elseif i == length(c)
                 c2(i,pindex(j)) = k1*(c(i-1,j) - 2*c(i,j) + ...
-                    c(i-1,j) - 4*dy*c(i,j)) + k2*(c(i,pindex(j-1)) - 2*c(i,j) + ...
-                    c(i,pindex(j+1))) + c(i,j);
+                    c(i-1,j) - 4*dy*c(i,j)) + k2*(c(i,pindex(j-1))...
+                    - 2*c(i,j) + c(i,pindex(j+1))) + c(i,j);
             else
                 c2(i,pindex(j)) = k1*(c(i-1,j) - 2*c(i,j) + ...
                     c(i+1,j)) + k2*(c(i,pindex(j-1)) - 2*c(i,j) + ...
                     c(i,pindex(j+1))) + c(i,j);
             end
         end
+    end     
+end
+
+function c2 = reactionStep1(u,v)
+    c2 = zeros(length(u));
+    
+    for i=1:length(u)
+        for j = 1:length(u)
+            c2 = u + dt*(alpha*u(i,j)*(1 - r1*v(i,j)^2) + ...
+                v(i,j)*(1 - r2*u(i,j)));
+        end
     end
-    c = c2;
+end
+
+function c2 = reactionStep2(u,v)
+    c2 = zeros(length(u));
+    
+    for i=1:length(u)
+        for j = 1:length(u)
+            c2 = u + dt*(beta*v(i,j)*(1 + (alpha*r1/beta)*u(i,j)*v(i,j))...
+                + u(i,j)*(gamma + r2*v(i,j)));
+        end
+    end
+end
+
+subplot(1,2,1),
+h1 = surf(x,y,activatorConc,'edgecolor','none');
+colormap gray;
+caxis([0,5]);
+xlim([0,1]);
+ylim([0,1]);
+view(2);
+title('Activator Concentration');
+hold all;
+
+subplot(1,2,2),
+h2 = surf(x,y,inhibitorConc,'edgecolor','none');
+colormap gray;
+caxis([0,5]);
+xlim([0,1]);
+ylim([0,1]);
+view(2);
+title('Inhibitor Concentration');
+hold all;
+
+
+
+
+for t=1:T
+    activatorConc = diffusionStep(activatorConc, D);
+    inhibitorConc = diffusionStep(inhibitorConc, D*DRatio);
+    
     pause(1/60);
-    delete(h1);
-    h1 = surf(x,y,c,'edgecolor','none');
-    %view(2);
+    
+    subplot(1,2,1, 'replace'),
+    h1 = surf(x,y,activatorConc,'edgecolor','none');
+%     view(2);
+    title('Activator Concentration');
+    
+    subplot(1,2,2,'replace'),
+    h2 = surf(x,y,inhibitorConc,'edgecolor','none');
+%     view(2);
+    title('Inhibitor Concentration');
+    
     hold all;
 end
 end
